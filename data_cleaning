@@ -1,0 +1,119 @@
+############################################################
+# 🧹 DATA CLEANING WORKFLOW in R
+# Autore: Alessandro Di Toma
+# Obiettivo: Pulizia e preparazione di un dataset di esempio
+############################################################
+
+️# LIBRERIE --------------------------------------------------------------
+
+library(tidyverse)
+library(janitor)
+library(skimr)
+library(DataExplorer)
+library(Amelia)
+
+# IMPORTAZIONE DATI ------------------------------------------------------
+
+# Sostituisci con il tuo dataset
+df <- read.csv("dataset_lavoro.csv")
+
+# Controllo iniziale
+head(df)
+str(df)
+summary(df)
+
+# NOMI VARIABILI ---------------------------------------------------------
+# Pulizia dei nomi delle variabili (minuscole, senza spazi o caratteri speciali)
+df <- clean_names(df)
+
+# ANALISI DESCRITTIVA RAPIDA --------------------------------------------
+skim(df)
+create_report(df)   # genera report HTML esplorativo automatico
+
+# GESTIONE DEI VALORI MANCANTI ------------------------------------------
+
+# Conta i missing per variabile
+colSums(is.na(df))
+
+# Visualizza mappa dei missing
+missmap(df)
+
+# Esempio: imputare i redditi mancanti con la mediana
+df$income[is.na(df$income)] <- median(df$income, na.rm = TRUE)
+
+# Crea una dummy se vuoi conservare l’informazione del missing
+df$income_missing <- ifelse(is.na(df$income), 1, 0)
+
+# RIMOZIONE DUPLICATI ---------------------------------------------------
+df <- df %>% distinct()
+
+# TIPI DI VARIABILI -----------------------------------------------------
+df$gender <- as.factor(df$gender)
+df$city <- as.factor(df$city)
+df$age <- as.numeric(df$age)
+df$income <- as.numeric(df$income)
+
+# OUTLIER ---------------------------------------------------------------
+
+# Boxplot per visualizzare outlier
+boxplot(df$income, main = "Distribuzione reddito", ylab = "Income")
+
+# Metodo IQR per rimuoverli (solo se motivato)
+Q1 <- quantile(df$income, 0.25, na.rm = TRUE)
+Q3 <- quantile(df$income, 0.75, na.rm = TRUE)
+IQR <- Q3 - Q1
+df <- df %>% filter(income >= (Q1 - 1.5 * IQR) & income <= (Q3 + 1.5 * IQR))
+
+# UNIFORMARE STRINGHE E CATEGORIE --------------------------------------
+
+df$city <- tolower(df$city)
+df$city <- str_trim(df$city)
+
+df$gender <- recode(df$gender,
+                    "M" = "Male",
+                    "F" = "Female",
+                    "m" = "Male",
+                    "f" = "Female")
+
+# CONTROLLO COERENZA LOGICA -------------------------------------------
+
+# Età compresa tra 16 e 100 anni
+df <- df %>% filter(age >= 16 & age <= 100)
+
+# Reddito positivo
+df <- df %>% filter(income >= 0)
+
+# RINOMINA VARIABILI ---------------------------------------------------
+df <- df %>% rename(
+  age_years = age,
+  monthly_income = income
+)
+
+# STANDARDIZZAZIONE UNITÀ ---------------------------------------------
+# Esempio: se reddito è annuale, convertirlo in mensile
+# df$monthly_income <- df$annual_income / 12
+
+️ ESPORTA IL DATASET PULITO -------------------------------------------
+
+write.csv(df, "dataset_lavoro_clean.csv", row.names = FALSE)
+
+#  LOG DI PULIZIA -------------------------------------------------------
+# Crea un semplice file di testo con le modifiche effettuate
+log <- "
+DATA CLEANING LOG
+=================
+- Puliti nomi variabili
+- Imputati redditi mancanti con mediana
+- Creato flag income_missing
+- Rimossi duplicati
+- Rimosse osservazioni con età < 16 o > 100
+- Uniformati valori di genere e città
+- Rimossi outlier di reddito (metodo IQR)
+- Esportato dataset pulito
+"
+writeLines(log, "data_cleaning_log.txt")
+
+############################################################
+# FINE DELLA PULIZIA
+# Dataset pronto per l’analisi descrittiva o econometrica!
+############################################################
