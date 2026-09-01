@@ -1,0 +1,86 @@
+library("dplyr")
+library("tidyr")
+library("ggplot2")
+
+# parametri
+alpha <- 0.3   # elasticità del capitale
+delta <- 0.05  # deprezzamento
+s <- 0.2      # risparmio
+g <- 0.02     # tasso di crescita tecnologico
+n <- 0.01     # tasso di crescita della popolazione
+
+# valori iniziali
+K_0 <- 100 # capitale iniziale
+I_0 <- 100 # lavoro iniziale
+A_0 <- 1   # livello di tecnologia iniziale
+
+#periodo iniziale
+T <- 150  #numero di periodi
+
+#Vettori
+big_y <- numeric (T)
+big_k <- numeric (T)
+big_l <- numeric (T)
+big_a <- numeric (T)
+y <- numeric (T)
+k <- numeric (T)
+y_tilde <- numeric (T)
+k_tilde <- numeric (T)
+
+#t=1
+big_k[1] <- K_0
+big_l[1] <- I_0
+big_a[1] <- A_0
+
+#Modello
+for (t in 1:T) {
+ big_y[t] <- big_k[t]^alpha * (big_a[t]) * big_l[t]^(1-alpha) #output 
+#output per lavoratore
+ y[t] <- big_y[t] / big_a[t] * big_l[t]
+y_tilde [t] <- big_y[t] / (big_a[t] * big_l[t])
+
+# capitale per lavoratore
+k[t] <- big_k[t] / big_l[t]
+k_tilde[t] <- big_k[t] / (big_a[t]* big_l[t])
+
+#periodo successivo
+if (t<T) {
+  big_k[t+1] <- (1 - delta) * big_k[t] + s * big_k[t] + s * big_y[t]
+  big_l[t+1] <- (1 + n) * big_l[t]
+  big_a[t +1] <- (1 + g) * big_a[t]
+}
+}
+
+#risultati dentro un dataframe
+results <- data.frame (
+  Period = 1:T,
+  Output = big_y,
+  Capital = big_k,
+  Labour = big_l,
+  Technology = big_a,
+  Output_per_worker = y,
+  Capital_per_worker = k,
+  Output_per_Effective_labour = y_tilde,
+  Capital_per_Effective_Labour = k_tilde
+)
+
+#grafici
+results_long <- results %>%
+  gather(key = "variable", value = "value", -Period)
+
+results_long$variable <- factor(results_long$variable,
+                                levels= c("Capital",
+                                          "Capital_per_worker",
+                                          "Capital_per_Effective_Labour",
+                                          "Output",
+                                          "Output_per_Worker",
+                                          "Output_per_Effective_Labour",
+                                          "Labour",
+                                          "Technology"))
+#Grafico
+ggplot(results_long, aes(x = Period, y= value)) +
+  geom_line() +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(title = "Modello di Solow-Swan", y = "value") +
+  theme_minimal() +
+  theme (legend.position = "none")
